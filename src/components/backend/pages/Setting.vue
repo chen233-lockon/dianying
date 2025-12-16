@@ -277,15 +277,15 @@ const changePassword = async () => {
   }
 };
 
-// 加载操作日志
+// 加载操作日志（使用本地存储）
 onMounted(async () => {
   try {
-    const response = await operationLogAPI.getLogs({
-      _sort: "id",
-      _order: "desc",
-      _limit: 10,
-    });
-    operationLogs.value = response.list;
+    // 从localStorage获取操作日志
+    const localLogs = localStorage.getItem("operationLogs");
+    if (localLogs) {
+      const logs = JSON.parse(localLogs);
+      operationLogs.value = logs.slice(0, 10); // 只显示最近10条
+    }
   } catch (error) {
     console.error("加载操作日志失败:", error);
   }

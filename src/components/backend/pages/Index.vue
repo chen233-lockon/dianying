@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, onActivated, nextTick } from "vue";
 import { Memo } from "@element-plus/icons-vue";
 import * as echarts from "echarts";
 import { useUserStore } from "../../../stores/user";
@@ -11,19 +11,39 @@ const adminStore = useUserStore();
 const categoryStore = useCategoryStore();
 const movieStore = useMovieStore();
 const usersStore = useUsersStore();
+
+let chart1 = null;
+let chart2 = null;
+
 onMounted(async () => {
   // 先获取初始数据
   await movieStore.fetchMovies();
   await categoryStore.fetchCategories();
   await usersStore.fetchUsers();
 
+  await nextTick();
   initCharts1();
   initCharts2();
 });
+
+// 页面激活时刷新数据和图表
+onActivated(async () => {
+  await movieStore.fetchMovies();
+  await categoryStore.fetchCategories();
+  await usersStore.fetchUsers();
+
+  await nextTick();
+  // 重新初始化图表
+  if (chart1) chart1.resize();
+  if (chart2) chart2.resize();
+});
 // 图表 1：月度浏览量
 const initCharts1 = () => {
-  const myChart = echarts.init(document.getElementById("salesVolume"));
-  myChart.setOption({
+  const chartDom = document.getElementById("salesVolume");
+  if (!chartDom) return;
+
+  chart1 = echarts.init(chartDom);
+  chart1.setOption({
     color: ["#4eacaf"],
     title: { text: "2024 年月度用户浏览量" },
     xAxis: {
@@ -69,15 +89,14 @@ const initCharts1 = () => {
       },
     ],
   });
-  // 图表自适应大小
-  window.onresize = () => {
-    myChart.resize();
-  };
 };
 // 图表 2：年评论数量
 const initCharts2 = () => {
-  const myChart = echarts.init(document.getElementById("orderQuantity"));
-  myChart.setOption({
+  const chartDom = document.getElementById("orderQuantity");
+  if (!chartDom) return;
+
+  chart2 = echarts.init(chartDom);
+  chart2.setOption({
     title: { text: "2024 年评论数量" },
     color: ["#4eacaf"],
     grid: {
@@ -129,10 +148,12 @@ const initCharts2 = () => {
       },
     ],
   });
-  // 图表自适应大小
-  window.onresize = () => {
-    myChart.resize();
-  };
+};
+
+// 图表自适应大小
+window.onresize = () => {
+  if (chart1) chart1.resize();
+  if (chart2) chart2.resize();
 };
 </script>
 <template>

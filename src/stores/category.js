@@ -21,10 +21,10 @@ export const useCategoryStore = defineStore("category", {
 
     async addCategory(category) {
       try {
-        const response = await categoryAPI.createCategory(category);
-        this.categories.push(response.data);
-        return response.data;
+        await categoryAPI.createCategory(category);
         await addOperationLog(`添加了分类：${category.name}`);
+        // 立即重新获取列表以更新界面
+        await this.fetchCategories();
       } catch (error) {
         ElMessage.error("创建分类失败: " + error.message);
         throw error;
@@ -34,13 +34,9 @@ export const useCategoryStore = defineStore("category", {
     async updateCategory(updatedCategory) {
       try {
         await categoryAPI.updateCategory(updatedCategory.id, updatedCategory);
-        const index = this.categories.findIndex(
-          (c) => c.id === updatedCategory.id
-        );
-        if (index !== -1) {
-          this.categories.splice(index, 1, updatedCategory);
-        }
-        await addOperationLog(`修改了分类：${category.name}`);
+        await addOperationLog(`修改了分类：${updatedCategory.name}`);
+        // 立即重新获取列表以更新界面
+        await this.fetchCategories();
       } catch (error) {
         ElMessage.error("更新分类失败: " + error.message);
         throw error;
@@ -49,9 +45,12 @@ export const useCategoryStore = defineStore("category", {
 
     async deleteCategory(id) {
       try {
+        const category = this.categories.find((c) => c.id === id);
+        const categoryName = category ? category.name : "Unknown";
         await categoryAPI.deleteCategory(id);
-        this.categories = this.categories.filter((c) => c.id !== id);
-        await addOperationLog(`删除了分类：${category.name}`);
+        await addOperationLog(`删除了分类：${categoryName}`);
+        // 立即重新获取列表以更新界面
+        await this.fetchCategories();
       } catch (error) {
         ElMessage.error("删除分类失败: " + error.message);
         throw error;

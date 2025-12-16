@@ -93,8 +93,15 @@
 
       <el-table-column label="评分" width="120">
         <template #default="{ row }">
-          <el-rate :model-value="row.score / 2" disabled allow-half :max="5" />
-          <span style="margin-left: 8px">{{ row.score.toFixed(1) }}</span>
+          <el-rate
+            :model-value="(Number(row.score) || 0) / 2"
+            disabled
+            allow-half
+            :max="5"
+          />
+          <span style="margin-left: 8px">{{
+            (Number(row.score) || 0).toFixed(1)
+          }}</span>
         </template>
       </el-table-column>
 
@@ -138,16 +145,14 @@
     </el-table>
 
     <!-- 分页 -->
-    <div>
+    <div style="margin-top: 20px">
       <el-pagination
         v-model:current-page="movieStore.pagination.page"
         v-model:page-size="movieStore.pagination.pageSize"
         :page-sizes="[10, 20, 50, 100]"
-        :size="size"
-        :disabled="disabled"
-        :background="background"
+        background
         layout="total, sizes, prev, pager, next, jumper"
-        :total="192"
+        :total="movieStore.pagination.total"
         @size-change="handleSizeChange"
         @current-change="handlePageChange"
       />
@@ -156,7 +161,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, onMounted, onActivated } from "vue";
 import { ElMessage } from "element-plus";
 import { useMovieStore } from "../../../stores/movieStore";
 import { addOperationLog } from "../../../utils/operationLog";
@@ -218,31 +223,43 @@ onMounted(() => {
   movieStore.fetchMovies();
 });
 
+// 页面激活时刷新数据（从其他页面切换回来时）
+onActivated(() => {
+  movieStore.fetchMovies();
+});
+
 const openDialog = () => {
   dialogVisible.value = true;
 };
 
 const editMovie = (movie) => {
+  // 确保正确复制所有字段
   Object.assign(form, {
-    ...movie,
-    genre: Array.isArray(movie.genre) ? movie.genre.join("/") : movie.genre,
+    id: movie.id,
+    name: movie.name,
+    score: movie.score,
+    duration: movie.duration,
+    image: movie.image,
+    director: movie.director,
+    genre: Array.isArray(movie.genre)
+      ? movie.genre.join("/")
+      : movie.genre || "",
+    actors: Array.isArray(movie.actors) ? movie.actors : [],
+    releaseDate: movie.releaseDate,
+    description: movie.description,
   });
   dialogVisible.value = true;
 };
 
 const deleteMovie = async (id) => {
   try {
+    const movie = movieStore.movies.find((m) => m.id === id);
+    const movieName = movie ? movie.name : "Unknown";
     await movieStore.deleteMovie(id);
     ElMessage.success("删除成功");
-
-    // 删除后检查当前页是否为空
-    if (movieStore.movies.length === 0 && movieStore.pagination.page > 1) {
-      movieStore.pagination.page--;
-      movieStore.fetchMovies();
-      await addOperationLog(`删除了电影：${movie.name}`);
-    }
+    await addOperationLog(`删除了电影：${movieName}`);
   } catch (error) {
-    ElMessage.error("删除失败");
+    ElMessage.error("删除失败: " + error.message);
   }
 };
 
@@ -263,39 +280,54 @@ const formatGenre = (genre) => {
 
 const submitForm = async () => {
   try {
+    if (!formRef.value) {
+      ElMessage.error("表单未初始化");
+      return;
+    }
+
     await formRef.value.validate();
 
     const movieData = {
       ...form,
       genre: form.genre.split("/").map((g) => g.trim()),
-      id: form.id || `m_${Date.now()}`, // 模拟ID生成
     };
 
     if (form.id) {
       await movieStore.updateMovie(form.id, movieData);
       ElMessage.success("更新成功");
-      await addOperationLog(`修改了电影：${form.name}`);
     } else {
       await movieStore.createMovie(movieData);
       ElMessage.success("创建成功");
-      await addOperationLog(`添加了电影：${form.name}`);
     }
 
     dialogVisible.value = false;
+    // 确保关闭对话框后数据已经更新
+    await movieStore.fetchMovies();
   } catch (error) {
     console.error("提交失败:", error);
-    ElMessage.error("表单验证失败，请检查输入");
+    if (error.message) {
+      ElMessage.error("操作失败: " + error.message);
+    }
   }
 };
 
 const resetForm = () => {
-  formRef.value?.resetFields();
-  Object.keys(form).forEach((key) => {
-    if (key !== "id") form[key] = "";
+  if (formRef.value) {
+    formRef.value.resetFields();
+  }
+  // 重置表单数据
+  Object.assign(form, {
+    id: "",
+    name: "",
+    score: 8.0,
+    duration: 120,
+    image: "",
+    director: "",
+    genre: "",
+    actors: [],
+    releaseDate: "",
+    description: "",
   });
-  form.score = 8.0;
-  form.duration = 120;
-  form.actors = [];
 };
 </script>
 

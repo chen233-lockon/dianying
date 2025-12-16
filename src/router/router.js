@@ -31,7 +31,20 @@ const router = createRouter({
           path: "/goods",
           name: "goods",
           component: () => import("../components/backend/pages/Goods.vue"),
-          meta: { title: "商品管理" },
+          meta: { title: "电影管理" },
+        },
+        {
+          path: "/users",
+          name: "users",
+          component: () => import("../components/backend/pages/Users.vue"),
+          meta: { title: "用户管理" },
+        },
+        {
+          path: "/announcements",
+          name: "announcements",
+          component: () =>
+            import("../components/backend/pages/Announcements.vue"),
+          meta: { title: "公告管理" },
         },
         {
           path: "/setting",

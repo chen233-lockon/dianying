@@ -25,7 +25,7 @@
             <span>分类管理</span>
           </el-menu-item>
         </router-link>
-        <!-- 商品管理 -->
+        <!-- 电影管理 -->
         <router-link :to="{ name: 'goods' }">
           <el-menu-item index="3">
             <el-icon>
@@ -34,9 +34,27 @@
             <span>电影管理</span>
           </el-menu-item>
         </router-link>
+        <!-- 用户管理 -->
+        <router-link :to="{ name: 'users' }">
+          <el-menu-item index="4">
+            <el-icon>
+              <User />
+            </el-icon>
+            <span>用户管理</span>
+          </el-menu-item>
+        </router-link>
+        <!-- 公告管理 -->
+        <router-link :to="{ name: 'announcements' }">
+          <el-menu-item index="5">
+            <el-icon>
+              <Bell />
+            </el-icon>
+            <span>公告管理</span>
+          </el-menu-item>
+        </router-link>
         <!-- 个人中心 -->
         <router-link :to="{ name: 'setting' }">
-          <el-menu-item index="4">
+          <el-menu-item index="6">
             <el-icon>
               <Setting />
             </el-icon>
@@ -49,14 +67,16 @@
 </template>
 
 <script setup>
-import { HomeFilled, Setting, List } from "@element-plus/icons-vue";
+import { HomeFilled, Setting, List, User, Bell } from "@element-plus/icons-vue";
 import { ref } from "vue";
 import router from "../../../router/router";
 const menuIndex = {
   index: "1",
   category: "2",
   goods: "3",
-  setting: "4",
+  users: "4",
+  announcements: "5",
+  setting: "6",
 };
 const active = ref(menuIndex[router.currentRoute.value.name] || "0");
 </script>

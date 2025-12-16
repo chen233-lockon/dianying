@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onActivated } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useCategoryStore } from "../../../stores/category";
 import { addOperationLog } from "../../../utils/operationLog";
@@ -125,6 +125,11 @@ const filteredCategories = computed(() => {
 
 // 生命周期
 onMounted(async () => {
+  await categoryStore.fetchCategories();
+});
+
+// 页面激活时刷新数据
+onActivated(async () => {
   await categoryStore.fetchCategories();
 });
 
@@ -170,11 +175,11 @@ const submitForm = async () => {
     if (isEditing.value) {
       await categoryStore.updateCategory(form.value);
       ElMessage.success("分类更新成功");
-      await addOperationLog(`更新了分类：${updatedCategory.name}`);
+      await addOperationLog(`更新了分类：${form.value.name}`);
     } else {
       await categoryStore.addCategory(form.value);
       ElMessage.success("分类创建成功");
-      await addOperationLog(`添加了分类：${category.name}`);
+      await addOperationLog(`添加了分类：${form.value.name}`);
     }
     dialogVisible.value = false;
   } catch (error) {

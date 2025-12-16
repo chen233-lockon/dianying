@@ -35,21 +35,41 @@ export const useMovieStore = defineStore("movie", {
       }
     },
     async createMovie(movieData) {
-      await movieAPI.createMovie(movieData);
-      await this.fetchMovies();
-      await addOperationLog(`添加了电影：${movieData.name}`);
+      try {
+        await movieAPI.createMovie(movieData);
+        await this.fetchMovies();
+        await addOperationLog(`添加了电影：${movieData.name}`);
+      } catch (error) {
+        console.error("创建电影失败:", error);
+        ElMessage.error("创建电影失败: " + error.message);
+        throw error;
+      }
     },
 
     async updateMovie(id, movieData) {
-      await movieAPI.updateMovie(id, movieData);
-      await this.fetchMovies();
-      await addOperationLog(`修改了电影：${movieData.name}`);
+      try {
+        await movieAPI.updateMovie(id, movieData);
+        await this.fetchMovies();
+        await addOperationLog(`修改了电影：${movieData.name}`);
+      } catch (error) {
+        console.error("更新电影失败:", error);
+        ElMessage.error("更新电影失败: " + error.message);
+        throw error;
+      }
     },
 
     async deleteMovie(id) {
-      await movieAPI.deleteMovie(id);
-      await this.fetchMovies();
-      await addOperationLog(`删除了电影：${movieData.name}`);
+      try {
+        const movie = this.movies.find((m) => m.id === id);
+        const movieName = movie ? movie.name : "Unknown";
+        await movieAPI.deleteMovie(id);
+        await this.fetchMovies();
+        await addOperationLog(`删除了电影：${movieName}`);
+      } catch (error) {
+        console.error("删除电影失败:", error);
+        ElMessage.error("删除电影失败: " + error.message);
+        throw error;
+      }
     },
 
     setCurrentMovie(movie) {

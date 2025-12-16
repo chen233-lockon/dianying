@@ -34,6 +34,54 @@ export const useUsersStore = defineStore("users", () => {
     }
   };
 
+  // 更新用户
+  const updateUser = async (userData) => {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      await userAPI.updateUser(userData.id, userData);
+
+      // 更新本地状态
+      const index = users.value.findIndex((u) => u.id === userData.id);
+      if (index !== -1) {
+        users.value[index] = { ...users.value[index], ...userData };
+      }
+
+      return true;
+    } catch (err) {
+      error.value =
+        err.response?.data?.message || err.message || "更新用户失败";
+      console.error("用户更新失败:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // 删除用户
+  const deleteUser = async (userId) => {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      await userAPI.deleteUser(userId);
+
+      // 从本地状态中移除
+      users.value = users.value.filter((u) => u.id !== userId);
+      userCount.value = users.value.length;
+
+      return true;
+    } catch (err) {
+      error.value =
+        err.response?.data?.message || err.message || "删除用户失败";
+      console.error("用户删除失败:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // 计算属性
   const isLoading = computed(() => loading.value);
   const hasError = computed(() => error.value !== null);
@@ -61,6 +109,8 @@ export const useUsersStore = defineStore("users", () => {
 
     // 方法
     fetchUsers,
+    updateUser,
+    deleteUser,
     getStats,
   };
 });

@@ -125,9 +125,9 @@ router.get("/:id/favorites", async (req, res) => {
       return movie;
     });
 
-    res.json({ 
-      favorites: formattedMovies,  // 完整的电影对象数组
-      favoriteIds: favoriteIds     // 电影ID数组
+    res.json({
+      favorites: formattedMovies, // 完整的电影对象数组
+      favoriteIds: favoriteIds, // 电影ID数组
     });
   } catch (error) {
     console.error("获取收藏列表失败:", error);

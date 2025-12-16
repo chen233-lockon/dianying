@@ -1,8 +1,24 @@
 <template>
   <div>
-    <el-button type="primary" style="margin-bottom: 10px" @click="openDialog"
-      >新增电影</el-button
+    <div
+      style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center"
     >
+      <el-input
+        v-model="searchKeyword"
+        placeholder="搜索电影名称、导演..."
+        clearable
+        style="width: 300px"
+        @input="handleSearch"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+      <el-button type="primary" @click="openDialog">
+        <el-icon><Plus /></el-icon>
+        新增电影
+      </el-button>
+    </div>
 
     <!-- 新增/编辑对话框 -->
     <el-dialog
@@ -87,7 +103,15 @@
     </el-dialog>
 
     <!-- 电影列表 -->
-    <el-table :data="movieStore.movies" border style="width: 100%">
+    <el-table
+      :data="displayedMovies"
+      border
+      style="width: 100%"
+      v-loading="loading"
+    >
+      <template #empty>
+        <el-empty description="暂无电影数据" />
+      </template>
       <el-table-column prop="id" label="ID" width="80" />
       <el-table-column prop="name" label="名称" width="180" />
 
@@ -161,7 +185,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onActivated } from "vue";
+import { ref, reactive, computed, onMounted, onActivated } from "vue";
 import { ElMessage } from "element-plus";
 import { useMovieStore } from "../../../stores/movieStore";
 import { addOperationLog } from "../../../utils/operationLog";
@@ -169,6 +193,28 @@ import { addOperationLog } from "../../../utils/operationLog";
 const movieStore = useMovieStore();
 const dialogVisible = ref(false);
 const formRef = ref(null);
+const searchKeyword = ref("");
+const loading = ref(false);
+
+// 计算属性：过滤后的电影列表
+const displayedMovies = computed(() => {
+  if (!Array.isArray(movieStore.movies)) {
+    console.warn("movieStore.movies 不是数组:", movieStore.movies);
+    return [];
+  }
+
+  if (!searchKeyword.value) {
+    return movieStore.movies;
+  }
+
+  const keyword = searchKeyword.value.toLowerCase();
+  return movieStore.movies.filter(
+    (movie) =>
+      movie.name?.toLowerCase().includes(keyword) ||
+      movie.director?.toLowerCase().includes(keyword) ||
+      movie.description?.toLowerCase().includes(keyword)
+  );
+});
 
 console.log(movieStore.pagination.page);
 console.log(movieStore.pagination.pageSize);
@@ -263,9 +309,14 @@ const deleteMovie = async (id) => {
   }
 };
 
+const handleSearch = () => {
+  // 搜索时重置到第一页
+  movieStore.pagination.page = 1;
+};
+
 const handleSizeChange = (size) => {
   movieStore.pagination.pageSize = size;
-  movieStore.pagination.page = 1; // 重置到第一页
+  movieStore.pagination.page = 1;
   movieStore.fetchMovies();
 };
 
@@ -275,7 +326,14 @@ const handlePageChange = (page) => {
 };
 
 const formatGenre = (genre) => {
-  return Array.isArray(genre) ? genre : (genre || "").split("/");
+  if (!genre) return [];
+  if (Array.isArray(genre)) {
+    return genre.filter((g) => g && g.trim());
+  }
+  return genre
+    .split("/")
+    .map((g) => g.trim())
+    .filter((g) => g);
 };
 
 const submitForm = async () => {

@@ -38,10 +38,19 @@
         </div>
       </template>
 
-      <el-table :data="filteredUsers" border stripe style="width: 100%">
+      <el-table
+        :data="filteredUsers"
+        border
+        stripe
+        style="width: 100%"
+        v-loading="usersStore.loading"
+      >
+        <template #empty>
+          <el-empty description="暂无用户数据" />
+        </template>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" width="150" />
-        <el-table-column prop="email" label="邮箱" width="200" />
+        <el-table-column prop="account" label="账号" width="150" />
+        <el-table-column prop="nickname" label="昵称" width="150" />
 
         <el-table-column label="头像" width="100">
           <template #default="{ row }">
@@ -63,7 +72,11 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="bio" label="简介" show-overflow-tooltip />
+        <el-table-column
+          prop="signature"
+          label="个性签名"
+          show-overflow-tooltip
+        />
 
         <el-table-column label="收藏数" width="100">
           <template #default="{ row }">
@@ -94,12 +107,12 @@
       width="600px"
     >
       <el-form :model="form" label-width="100px" :disabled="isViewing">
-        <el-form-item label="用户名">
-          <el-input v-model="form.username" />
+        <el-form-item label="账号">
+          <el-input v-model="form.account" :disabled="isViewing" />
         </el-form-item>
 
-        <el-form-item label="邮箱">
-          <el-input v-model="form.email" />
+        <el-form-item label="昵称">
+          <el-input v-model="form.nickname" />
         </el-form-item>
 
         <el-form-item label="头像URL">
@@ -123,12 +136,12 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="简介">
+        <el-form-item label="个性签名">
           <el-input
-            v-model="form.bio"
+            v-model="form.signature"
             type="textarea"
             :rows="3"
-            placeholder="请输入用户简介"
+            placeholder="请输入个性签名"
           />
         </el-form-item>
 
@@ -159,53 +172,100 @@ const dialogVisible = ref(false);
 const isViewing = ref(false);
 const form = ref({
   id: "",
-  username: "",
-  email: "",
+  account: "",
+  nickname: "",
   avatar: "",
   hobbies: [],
-  bio: "",
+  signature: "",
   favorites: [],
+  gender: "male",
+  age: 18,
+  identity: "普通用户",
 });
 
 // 计算属性
 const filteredUsers = computed(() => {
+  console.log("filteredUsers 计算, usersStore.users:", usersStore.users);
+  if (!Array.isArray(usersStore.users)) {
+    console.warn("usersStore.users 不是数组:", usersStore.users);
+    return [];
+  }
   const keyword = searchKeyword.value.toLowerCase();
+  if (!keyword) {
+    return usersStore.users;
+  }
   return usersStore.users.filter(
     (u) =>
-      u.username?.toLowerCase().includes(keyword) ||
-      u.email?.toLowerCase().includes(keyword)
+      u.account?.toLowerCase().includes(keyword) ||
+      u.nickname?.toLowerCase().includes(keyword) ||
+      u.signature?.toLowerCase().includes(keyword)
   );
 });
 
 // 生命周期
 onMounted(async () => {
-  await usersStore.fetchUsers();
+  console.log("用户管理页面加载");
+  try {
+    await usersStore.fetchUsers();
+    console.log("usersStore.users:", usersStore.users);
+    console.log("用户数量:", usersStore.users.length);
+  } catch (error) {
+    console.error("加载用户数据失败:", error);
+    ElMessage.error("加载用户数据失败");
+  }
 });
 
 // 页面激活时刷新数据
 onActivated(async () => {
-  await usersStore.fetchUsers();
+  console.log("用户管理页面激活");
+  try {
+    await usersStore.fetchUsers();
+  } catch (error) {
+    console.error("刷新用户数据失败:", error);
+  }
 });
 
 // 辅助方法
 const getHobbies = (user) => {
-  if (!user.hobbies) return [];
-  return Array.isArray(user.hobbies) ? user.hobbies : [];
+  if (!user || !user.hobbies) return [];
+  if (Array.isArray(user.hobbies)) return user.hobbies;
+  if (typeof user.hobbies === "string") {
+    try {
+      return JSON.parse(user.hobbies);
+    } catch {
+      return [];
+    }
+  }
+  return [];
 };
 
 const getFavorites = (user) => {
-  if (!user.favorites) return [];
-  return Array.isArray(user.favorites) ? user.favorites : [];
+  if (!user || !user.favorites) return [];
+  if (Array.isArray(user.favorites)) return user.favorites;
+  if (typeof user.favorites === "string") {
+    try {
+      return JSON.parse(user.favorites);
+    } catch {
+      return [];
+    }
+  }
+  return [];
 };
 
 // 操作方法
 const handleView = (user) => {
+  console.log("查看用户:", user);
   isViewing.value = true;
-  form.value = { ...user };
+  form.value = {
+    ...user,
+    hobbies: getHobbies(user),
+    favorites: getFavorites(user),
+  };
   dialogVisible.value = true;
 };
 
 const handleEdit = (user) => {
+  console.log("编辑用户:", user);
   isViewing.value = false;
   form.value = {
     ...user,
@@ -218,7 +278,7 @@ const handleEdit = (user) => {
 const handleDelete = async (user) => {
   try {
     await ElMessageBox.confirm(
-      `确定删除用户 "${user.username}" 吗？此操作不可恢复！`,
+      `确定删除用户 "${user.nickname || user.account}" 吗？此操作不可恢复！`,
       "删除确认",
       {
         confirmButtonText: "确认删除",
@@ -228,7 +288,7 @@ const handleDelete = async (user) => {
     );
 
     await usersStore.deleteUser(user.id);
-    await addOperationLog(`删除了用户：${user.username}`);
+    await addOperationLog(`删除了用户：${user.nickname || user.account}`);
     ElMessage.success("用户删除成功");
     // 立即刷新列表
     await usersStore.fetchUsers();
@@ -240,13 +300,15 @@ const handleDelete = async (user) => {
 };
 
 const submitForm = async () => {
-  if (!form.value.username.trim()) {
-    return ElMessage.warning("用户名不能为空");
+  if (!form.value.account || !form.value.account.trim()) {
+    return ElMessage.warning("账号不能为空");
   }
 
   try {
     await usersStore.updateUser(form.value);
-    await addOperationLog(`更新了用户：${form.value.username}`);
+    await addOperationLog(
+      `更新了用户：${form.value.nickname || form.value.account}`
+    );
     ElMessage.success("用户更新成功");
     dialogVisible.value = false;
     // 立即刷新列表

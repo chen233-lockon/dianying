@@ -31,11 +31,25 @@ instance.interceptors.response.use(
 // 电影相关接口
 export const movieAPI = {
   // 获取电影列表
-  getMovies: ({ page, pageSize } = {}) =>
-    instance.get("/movies").then((response) => ({
-      list: response.data,
-      total: response.data.length,
-    })),
+  getMovies: ({ page = 1, pageSize = 10 } = {}) =>
+    instance
+      .get("/movies", {
+        params: { page, pageSize },
+      })
+      .then((response) => {
+        // 如果后端返回的是带分页信息的数据
+        if (response.data.list && response.data.total !== undefined) {
+          return response.data;
+        }
+        // 否则前端处理分页
+        const allData = response.data;
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+        return {
+          list: allData.slice(start, end),
+          total: allData.length,
+        };
+      }),
 
   // 获取单个电影
   getMovie: (id) => instance.get(`/movies/${id}`),

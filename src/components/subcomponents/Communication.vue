@@ -71,7 +71,7 @@
           <span class="close-modal" @click="closeModal">&times;</span>
         </div>
         <div class="modal-body">
-          <div ref="editor" class="editor-container"></div>
+          <div ref="editor" class="editor-container" translate="no"></div>
         </div>
         <div class="modal-footer">
           <button @click="submitPost" class="btn btn-primary">提交</button>
@@ -88,7 +88,7 @@
           <span class="close-modal" @click="closeEditModal">&times;</span>
         </div>
         <div class="modal-body">
-          <div ref="editEditor" class="editor-container"></div>
+          <div ref="editEditor" class="editor-container" translate="no"></div>
         </div>
         <div class="modal-footer">
           <button @click="submitEdit" class="btn btn-primary">提交修改</button>
@@ -184,7 +184,7 @@ const nextPage = () => {
 const showModal = () => {
   showPostModal.value = true;
   nextTick(() => {
-    if (!quill.value && editor.value) {
+    if (editor.value && !quill.value) {
       quill.value = new Quill(editor.value, {
         theme: "snow",
         placeholder: "请输入帖子内容...",
@@ -208,7 +208,8 @@ const showModal = () => {
         },
       });
     } else if (quill.value) {
-      quill.value.setText("");
+      // 清空内容而不是重新初始化
+      quill.value.root.innerHTML = "";
     }
   });
 };
@@ -217,7 +218,8 @@ const showModal = () => {
 const closeModal = () => {
   showPostModal.value = false;
   if (quill.value) {
-    quill.value.setText("");
+    // 清空编辑器内容
+    quill.value.root.innerHTML = "";
   }
 };
 
@@ -249,8 +251,8 @@ const submitPost = async () => {
 
     await userAPI.updateUser(currentUser.value.id, updatedUser);
 
-    // 更新本地数据
-    posts.value = [...posts.value, postResponse.data];
+    // 刷新帖子列表
+    await fetchPosts();
     currentUser.value = updatedUser;
     closeModal();
   } catch (error) {

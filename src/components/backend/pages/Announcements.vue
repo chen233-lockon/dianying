@@ -31,18 +31,12 @@
 
       <el-table :data="announcements" border stripe style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="标题" width="200" />
         <el-table-column prop="content" label="内容" show-overflow-tooltip />
-
-        <el-table-column label="类型" width="100">
+        <el-table-column label="创建时间" width="200">
           <template #default="{ row }">
-            <el-tag :type="getTypeTag(row.type)">
-              {{ row.type || "通知" }}
-            </el-tag>
+            {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-
-        <el-table-column prop="date" label="发布日期" width="180" />
 
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
@@ -64,35 +58,12 @@
       width="600px"
     >
       <el-form :model="form" label-width="80px" ref="formRef" :rules="rules">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入公告标题" />
-        </el-form-item>
-
         <el-form-item label="内容" prop="content">
           <el-input
             v-model="form.content"
             type="textarea"
-            :rows="4"
+            :rows="6"
             placeholder="请输入公告内容"
-          />
-        </el-form-item>
-
-        <el-form-item label="类型" prop="type">
-          <el-select v-model="form.type" placeholder="选择公告类型">
-            <el-option label="通知" value="通知" />
-            <el-option label="公告" value="公告" />
-            <el-option label="活动" value="活动" />
-            <el-option label="维护" value="维护" />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="发布日期" prop="date">
-          <el-date-picker
-            v-model="form.date"
-            type="datetime"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            placeholder="选择日期时间"
-            style="width: 100%"
           />
         </el-form-item>
       </el-form>
@@ -121,16 +92,11 @@ const formRef = ref(null);
 
 const form = ref({
   id: "",
-  title: "",
   content: "",
-  type: "通知",
-  date: "",
 });
 
 const rules = {
-  title: [{ required: true, message: "请输入标题", trigger: "blur" }],
   content: [{ required: true, message: "请输入内容", trigger: "blur" }],
-  type: [{ required: true, message: "请选择类型", trigger: "change" }],
 };
 
 // 生命周期
@@ -147,21 +113,32 @@ onActivated(async () => {
 const fetchAnnouncements = async () => {
   try {
     const response = await announcementAPI.getAnnouncements();
-    announcements.value = response.data;
+    console.log("公告数据:", response.data);
+    // 后端直接返回数组
+    announcements.value = Array.isArray(response.data)
+      ? response.data
+      : response.data.data || [];
   } catch (error) {
+    console.error("获取公告列表失败:", error);
     ElMessage.error("获取公告列表失败");
   }
 };
 
-// 获取类型标签样式
-const getTypeTag = (type) => {
-  const tagMap = {
-    通知: "info",
-    公告: "success",
-    活动: "warning",
-    维护: "danger",
-  };
-  return tagMap[type] || "info";
+// 格式化日期时间
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  return date
+    .toLocaleString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+    .replace(/\//g, "-");
 };
 
 // 操作方法
@@ -169,10 +146,7 @@ const handleAdd = () => {
   isEditing.value = false;
   form.value = {
     id: "",
-    title: "",
     content: "",
-    type: "通知",
-    date: new Date().toISOString().slice(0, 19).replace("T", " "),
   };
   dialogVisible.value = true;
 };
@@ -186,7 +160,7 @@ const handleEdit = (announcement) => {
 const handleDelete = async (announcement) => {
   try {
     await ElMessageBox.confirm(
-      `确定删除公告 "${announcement.title}" 吗？此操作不可恢复！`,
+      `确定删除该公告吗？此操作不可恢复！`,
       "删除确认",
       {
         confirmButtonText: "确认删除",
@@ -198,7 +172,7 @@ const handleDelete = async (announcement) => {
     await announcementAPI.deleteAnnouncement(announcement.id);
     await fetchAnnouncements();
     ElMessage.success("公告删除成功");
-    await addOperationLog(`删除了公告：${announcement.title}`);
+    await addOperationLog(`删除了公告ID：${announcement.id}`);
   } catch (error) {
     if (error !== "cancel") {
       ElMessage.error("删除失败");
@@ -217,11 +191,11 @@ const submitForm = async () => {
 
     if (isEditing.value) {
       await announcementAPI.updateAnnouncement(form.value.id, form.value);
-      await addOperationLog(`更新了公告：${form.value.title}`);
+      await addOperationLog(`更新了公告ID：${form.value.id}`);
       ElMessage.success("公告更新成功");
     } else {
       await announcementAPI.createAnnouncement(form.value);
-      await addOperationLog(`添加了公告：${form.value.title}`);
+      await addOperationLog(`添加了新公告`);
       ElMessage.success("公告创建成功");
     }
 

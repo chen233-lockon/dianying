@@ -16,22 +16,33 @@ export const useMovieStore = defineStore("movie", {
   actions: {
     async fetchMovies() {
       try {
-        const { list, total } = await movieAPI.getMovies({
+        const response = await movieAPI.getMovies({
           page: this.pagination.page,
           pageSize: this.pagination.pageSize,
         });
 
-        //处理空数据时重置页码
+        const { list, total } = response;
+
+        // 处理空数据时重置页码
         if (list.length === 0 && this.pagination.page > 1) {
           this.pagination.page--;
           return this.fetchMovies();
         }
 
-        this.movies = list;
-        this.pagination.total = total;
+        this.movies = list || [];
+        this.pagination.total = total || 0;
+
+        console.log("电影数据已加载:", {
+          总数: total,
+          当前页: this.pagination.page,
+          每页数量: this.pagination.pageSize,
+          当前页数据: list.length,
+        });
       } catch (error) {
         console.error("获取数据失败:", error);
         ElMessage.error("获取电影数据失败");
+        this.movies = [];
+        this.pagination.total = 0;
       }
     },
     async createMovie(movieData) {

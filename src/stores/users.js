@@ -16,18 +16,39 @@ export const useUsersStore = defineStore("users", () => {
       loading.value = true;
       error.value = null;
 
+      console.log("开始获取用户数据...");
       const response = await userAPI.getUsers();
+      console.log("用户API原始响应:", response);
+      console.log("response.data:", response.data);
+
+      // 处理响应数据 - 兼容不同的数据结构
+      let userData = [];
+      if (Array.isArray(response.data)) {
+        userData = response.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        userData = response.data.data;
+      } else if (response.data && Array.isArray(response.data.list)) {
+        userData = response.data.list;
+      } else {
+        console.warn("未知的数据结构:", response);
+        userData = [];
+      }
+
+      console.log("解析后的用户数据:", userData);
+      console.log("用户数量:", userData.length);
 
       // 更新状态
-      users.value = response.data;
-      userCount.value = response.data.length;
+      users.value = userData;
+      userCount.value = userData.length;
       lastFetch.value = new Date();
 
-      return response.data;
+      return userData;
     } catch (err) {
       error.value =
         err.response?.data?.message || err.message || "获取用户数据失败";
       console.error("用户数据获取失败:", err);
+      users.value = [];
+      userCount.value = 0;
       throw err;
     } finally {
       loading.value = false;

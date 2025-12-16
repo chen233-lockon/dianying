@@ -70,7 +70,7 @@
                 class="autocomplete-item"
                 @click="selectMovie(movie)"
               >
-                {{ movie.name }}
+                <span v-html="highlightMatch(movie.name, searchQuery)"></span>
               </div>
             </div>
           </div>
@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import { movieAPI } from "@/api/index.js";
@@ -162,6 +162,14 @@ const clearAuthData = () => {
   localStorage.removeItem("isLoggedIn");
 };
 
+// 点击外部关闭下拉框
+const handleClickOutside = (event) => {
+  const searchBox = event.target.closest(".search-box");
+  if (!searchBox) {
+    showDropdown.value = false;
+  }
+};
+
 // 获取所有电影数据
 onMounted(async () => {
   initializeAuth();
@@ -172,18 +180,31 @@ onMounted(async () => {
   } catch (error) {
     console.error("Error fetching movies:", error);
   }
+
+  // 添加全局点击事件监听
+  document.addEventListener("click", handleClickOutside);
 });
 
-// 处理输入事件
+// 清理事件监听
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
+});
+
+// 模糊搜索函数 - 只搜索电影名称
 const handleInput = () => {
   if (searchQuery.value.trim() === "") {
     showDropdown.value = false;
+    filteredMovies.value = [];
     return;
   }
 
-  filteredMovies.value = movies.value.filter((movie) =>
-    movie.name.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
+  const query = searchQuery.value.toLowerCase().trim();
+
+  // 模糊搜索：只匹配电影名称
+  filteredMovies.value = movies.value
+    .filter((movie) => movie.name?.toLowerCase().includes(query))
+    .slice(0, 8); // 限制最多显示8条结果
+
   showDropdown.value = filteredMovies.value.length > 0;
 };
 
@@ -194,22 +215,36 @@ const selectMovie = (movie) => {
   showDropdown.value = false;
 };
 
+// 高亮匹配的文本
+const highlightMatch = (text, query) => {
+  if (!text || !query) return text;
+
+  const regex = new RegExp(`(${query.trim()})`, "gi");
+  return text.replace(regex, '<span class="highlight">$1</span>');
+};
+
 // 搜索电影（按回车键）
 const searchMovie = () => {
   if (searchQuery.value.trim() === "") return;
 
+  // 如果只有一个结果，直接跳转
   if (filteredMovies.value.length === 1) {
-    router.push(`/home/database/detail/${filteredMovies.value[0].id}`);
+    selectMovie(filteredMovies.value[0]);
     return;
   }
 
-  const movie = movies.value.find(
-    (movie) => movie.name === searchQuery.value.trim()
+  // 优先精确匹配
+  const exactMatch = filteredMovies.value.find(
+    (movie) =>
+      movie.name.toLowerCase() === searchQuery.value.toLowerCase().trim()
   );
 
-  if (movie) {
-    router.push(`/home/database/detail/${movie.id}`);
-  } else if (filteredMovies.value.length === 0) {
+  if (exactMatch) {
+    selectMovie(exactMatch);
+  } else if (filteredMovies.value.length > 0) {
+    // 如果有多个结果，选择第一个
+    selectMovie(filteredMovies.value[0]);
+  } else {
     alert("未找到相关电影！");
   }
 };
@@ -363,7 +398,7 @@ const gotoAdminLogin = () => {
 /* 联想下拉框 */
 .autocomplete-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
   background-color: #fff;
@@ -371,18 +406,48 @@ const gotoAdminLogin = () => {
   border-radius: 4px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
   z-index: 1000;
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
 .autocomplete-item {
-  padding: 8px 12px;
+  padding: 10px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
+  font-size: 14px;
+  color: #303133;
 }
 
 .autocomplete-item:hover {
   background-color: #f5f7fa;
+}
+
+/* 高亮匹配文本 */
+.autocomplete-item :deep(.highlight) {
+  color: #409eff;
+  font-weight: 600;
+  background-color: rgba(64, 158, 255, 0.1);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* 滚动条样式 */
+.autocomplete-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 /* 用户相关样式 */

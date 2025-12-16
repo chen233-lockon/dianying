@@ -11,6 +11,7 @@ router.get("/", async (req, res) => {
     const formattedMovies = movies.map((movie) => {
       let actors = [];
       let genre = [];
+      let category_id = [];
 
       try {
         actors =
@@ -30,10 +31,49 @@ router.get("/", async (req, res) => {
         genre = [];
       }
 
+      try {
+        // 将category_id解析为数组
+        const originalCategoryId = movie.category_id;
+        if (typeof movie.category_id === "string") {
+          // 尝试作为 JSON 解析
+          try {
+            category_id = JSON.parse(movie.category_id);
+          } catch {
+            // 如果不是 JSON 格式，可能是普通字符串数字，转换为数字
+            const numId = parseInt(movie.category_id);
+            category_id = isNaN(numId) ? [] : [numId];
+          }
+        } else {
+          category_id = movie.category_id || [];
+        }
+
+        // 如果是单个数字，转换为数组
+        if (typeof category_id === "number") {
+          category_id = [category_id];
+        }
+
+        // 确保是数组
+        if (!Array.isArray(category_id)) {
+          category_id = [];
+        }
+
+        // 调试日志
+        console.log(
+          `电影 ${movie.name}: category_id 从 ${JSON.stringify(
+            originalCategoryId
+          )} (${typeof originalCategoryId}) 转换为 ${JSON.stringify(
+            category_id
+          )}`
+        );
+      } catch (e) {
+        category_id = [];
+      }
+
       return {
         ...movie,
         actors,
         genre,
+        category_id,
       };
     });
 
@@ -75,7 +115,7 @@ router.post("/", async (req, res) => {
         JSON.stringify(genre || []),
         explain,
         duration,
-        category_id,
+        JSON.stringify(category_id || []),
       ]
     );
 
@@ -119,7 +159,7 @@ router.put("/:id", async (req, res) => {
         JSON.stringify(genre || []),
         explain,
         duration,
-        category_id,
+        JSON.stringify(category_id || []),
         id,
       ]
     );

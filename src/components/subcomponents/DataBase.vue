@@ -118,18 +118,43 @@ const router = useRouter();
 const movies = ref([]);
 const categories = ref([]);
 const loading = ref(true);
-const activeCategory = ref("all");
+const activeCategory = ref(null); // null表示显示全部电影
 const currentPage = ref(1);
 const itemsPerPage = 8;
 
 // 查找当前选择的哪个分类,默认是全部
 const filteredMovies = computed(() => {
   if (!movies.value || !Array.isArray(movies.value)) return [];
-  return activeCategory.value === "all"
-    ? movies.value
-    : movies.value.filter(
-        (movie) => movie.category_id === activeCategory.value
-      );
+
+  // activeCategory为null时显示全部电影
+  if (activeCategory.value === null) {
+    return movies.value;
+  }
+
+  // 筛选包含选中分类ID的电影（支持多分类）
+  const filtered = movies.value.filter((movie) => {
+    console.log(`电影 ${movie.name}:`, {
+      category_id: movie.category_id,
+      isArray: Array.isArray(movie.category_id),
+      type: typeof movie.category_id,
+      包含的值: movie.category_id,
+    });
+
+    // category_id 现在是数组形式，检查是否包含当前分类
+    if (Array.isArray(movie.category_id)) {
+      const match = movie.category_id.includes(activeCategory.value);
+      return match;
+    }
+    // 兼容单个数字的情况
+    if (typeof movie.category_id === "number") {
+      const match = movie.category_id === activeCategory.value;
+      return match;
+    }
+    return false;
+  });
+
+  console.log("筛选结果数量:", filtered.length);
+  return filtered;
 });
 
 //实现分页逻辑
@@ -153,8 +178,15 @@ const fetchData = async () => {
     ]);
 
     // 解析响应数据并更新响应式变量
-    movies.value = moviesRes.data;
+    movies.value = moviesRes.list;
     categories.value = categoriesRes.data;
+    console.log("加载的电影数据:", movies.value);
+    console.log("加载的分类数据:", categories.value);
+    console.log(
+      "第一个电影的category_id类型:",
+      typeof movies.value[0]?.category_id,
+      movies.value[0]?.category_id
+    );
   } catch (error) {
     ElMessage.error("数据加载失败");
     console.error("Error fetching data:", error);
@@ -165,8 +197,16 @@ const fetchData = async () => {
 
 // 处理分类切换事件
 const handleCategoryChange = (categoryId) => {
-  activeCategory.value = categoryId;
+  // "all" 转换为 null（表示全部），其他转换为数字ID
+  activeCategory.value = categoryId === "all" ? null : parseInt(categoryId);
   currentPage.value = 1;
+  console.log(
+    "分类切换:",
+    categoryId,
+    "-> activeCategory:",
+    activeCategory.value
+  );
+  console.log("筛选后的电影数量:", filteredMovies.value.length);
 };
 
 const prevPage = () => currentPage.value > 1 && currentPage.value--;

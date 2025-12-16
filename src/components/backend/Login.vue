@@ -84,23 +84,24 @@ const onLogin = async () => {
     if (!admin) {
       throw new Error("用户名或密码错误");
 
-    // 保存登录状态
-    if (rememberMe.value) {
-      localStorage.setItem("rememberedUsername", username.value);
-      localStorage.setItem("rememberedPassword", password.value);
-    } else {
-      localStorage.removeItem("rememberedUsername");
-      localStorage.removeItem("rememberedPassword");
+      // 保存登录状态
+      if (rememberMe.value) {
+        localStorage.setItem("rememberedUsername", username.value);
+        localStorage.setItem("rememberedPassword", password.value);
+      } else {
+        localStorage.removeItem("rememberedUsername");
+        localStorage.removeItem("rememberedPassword");
+      }
+
+      // 存储管理员信息
+      userStore.setAdminProfile(admin);
+
+      // 设置登录信息
+      await userStore.setLoginInfo();
+
+      // 导航到首页
+      router.push({ name: "index" });
     }
-
-    // 存储管理员信息
-    userStore.setAdminProfile(admin);
-
-    // 设置登录信息
-    await userStore.setLoginInfo();
-
-    // 导航到首页
-    router.push({ name: "index" });
   } catch (error) {
     loginError.value = error.message || "登录失败，请重试";
     localStorage.removeItem("token");

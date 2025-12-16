@@ -68,7 +68,7 @@ router.get("/", async (req, res) => {
 
 // ===== 收藏相关路由（必须在 /:id 之前定义） =====
 
-// 获取用户收藏列表
+// 获取用户收藏列表（带完整电影信息）
 router.get("/:id/favorites", async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,17 +82,53 @@ router.get("/:id/favorites", async (req, res) => {
       return res.status(404).json({ error: "用户不存在" });
     }
 
-    let favorites = [];
+    let favoriteIds = [];
     try {
-      favorites =
+      favoriteIds =
         typeof users[0].favorites === "string"
           ? JSON.parse(users[0].favorites)
           : users[0].favorites || [];
     } catch (e) {
-      favorites = [];
+      favoriteIds = [];
     }
 
-    res.json({ favorites });
+    // 如果没有收藏，直接返回空数组
+    if (favoriteIds.length === 0) {
+      return res.json({ favorites: [], favoriteIds: [] });
+    }
+
+    // 根据电影ID查询完整的电影信息
+    const placeholders = favoriteIds.map(() => "?").join(",");
+    const [movies] = await pool.query(
+      `SELECT * FROM movies WHERE id IN (${placeholders})`,
+      favoriteIds
+    );
+
+    // 解析电影的JSON字段
+    const formattedMovies = movies.map((movie) => {
+      try {
+        movie.actors =
+          typeof movie.actors === "string"
+            ? JSON.parse(movie.actors)
+            : movie.actors || [];
+        movie.genre =
+          typeof movie.genre === "string"
+            ? JSON.parse(movie.genre)
+            : movie.genre || [];
+        movie.category_id =
+          typeof movie.category_id === "string"
+            ? JSON.parse(movie.category_id)
+            : movie.category_id;
+      } catch (e) {
+        console.error("解析电影数据失败:", e);
+      }
+      return movie;
+    });
+
+    res.json({ 
+      favorites: formattedMovies,  // 完整的电影对象数组
+      favoriteIds: favoriteIds     // 电影ID数组
+    });
   } catch (error) {
     console.error("获取收藏列表失败:", error);
     res.status(500).json({ error: error.message });

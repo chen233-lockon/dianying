@@ -89,10 +89,9 @@ const paginatedMovies = computed(() => {
   return rankings.value.slice(start, start + itemsPerPage);
 });
 
-// 总页数
-const totalPages = computed(() =>
-  Math.ceil(rankings.value.length / itemsPerPage)
-);
+const totalPages = computed(() => {
+  return Math.ceil(rankings.value.length / itemsPerPage);
+});
 
 // 获取排行榜数据
 const fetchRankings = async () => {
@@ -116,9 +115,6 @@ const prevPage = () => {
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
-    if (currentPage.value * itemsPerPage >= rankings.value.length - 5) {
-      fetchRankings();
-    }
   }
 };
 

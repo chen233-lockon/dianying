@@ -33,7 +33,6 @@ router.get("/", async (req, res) => {
 
       try {
         // 将category_id解析为数组
-        const originalCategoryId = movie.category_id;
         if (typeof movie.category_id === "string") {
           // 尝试作为 JSON 解析
           try {
@@ -56,15 +55,6 @@ router.get("/", async (req, res) => {
         if (!Array.isArray(category_id)) {
           category_id = [];
         }
-
-        // 调试日志
-        console.log(
-          `电影 ${movie.name}: category_id 从 ${JSON.stringify(
-            originalCategoryId
-          )} (${typeof originalCategoryId}) 转换为 ${JSON.stringify(
-            category_id
-          )}`
-        );
       } catch (e) {
         category_id = [];
       }
@@ -122,6 +112,81 @@ router.post("/", async (req, res) => {
     res.status(201).json({ id: result.insertId, ...req.body });
   } catch (error) {
     console.error("创建电影失败:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 获取单个电影详情
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log("获取电影详情，ID:", id);
+    const [movies] = await pool.query("SELECT * FROM movies WHERE id = ?", [
+      id,
+    ]);
+    console.log("查询结果:", movies.length, "条记录");
+
+    if (movies.length === 0) {
+      console.log("电影未找到");
+      return res.status(404).json({ error: "Movie not found" });
+    }
+
+    const movie = movies[0];
+
+    // 解析 JSON 字段
+    let actors = [];
+    let genre = [];
+    let category_id = [];
+
+    try {
+      actors =
+        typeof movie.actors === "string"
+          ? JSON.parse(movie.actors)
+          : movie.actors || [];
+    } catch (e) {
+      actors = [];
+    }
+
+    try {
+      genre =
+        typeof movie.genre === "string"
+          ? JSON.parse(movie.genre)
+          : movie.genre || [];
+    } catch (e) {
+      genre = [];
+    }
+
+    try {
+      if (typeof movie.category_id === "string") {
+        try {
+          category_id = JSON.parse(movie.category_id);
+        } catch {
+          const numId = parseInt(movie.category_id);
+          category_id = isNaN(numId) ? [] : [numId];
+        }
+      } else {
+        category_id = movie.category_id || [];
+      }
+
+      if (typeof category_id === "number") {
+        category_id = [category_id];
+      }
+
+      if (!Array.isArray(category_id)) {
+        category_id = [];
+      }
+    } catch (e) {
+      category_id = [];
+    }
+
+    res.json({
+      ...movie,
+      actors,
+      genre,
+      category_id,
+    });
+  } catch (error) {
+    console.error("获取电影详情失败:", error);
     res.status(500).json({ error: error.message });
   }
 });

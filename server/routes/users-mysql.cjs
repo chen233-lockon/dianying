@@ -12,6 +12,7 @@ router.get("/", async (req, res) => {
       let hobbies = [];
       let collections = [];
       let comments = [];
+      let favorites = [];
 
       try {
         hobbies =
@@ -40,11 +41,21 @@ router.get("/", async (req, res) => {
         comments = [];
       }
 
+      try {
+        favorites =
+          typeof user.favorites === "string"
+            ? JSON.parse(user.favorites)
+            : user.favorites || [];
+      } catch (e) {
+        favorites = [];
+      }
+
       return {
         ...user,
         hobbies,
         collections,
         comments,
+        favorites,
       };
     });
 
@@ -54,6 +65,126 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ===== 收藏相关路由（必须在 /:id 之前定义） =====
+
+// 获取用户收藏列表
+router.get("/:id/favorites", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [users] = await pool.query(
+      "SELECT favorites FROM users WHERE id = ?",
+      [id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+
+    let favorites = [];
+    try {
+      favorites =
+        typeof users[0].favorites === "string"
+          ? JSON.parse(users[0].favorites)
+          : users[0].favorites || [];
+    } catch (e) {
+      favorites = [];
+    }
+
+    res.json({ favorites });
+  } catch (error) {
+    console.error("获取收藏列表失败:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 添加收藏
+router.post("/:id/favorites", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { movieId } = req.body;
+
+    // 获取用户当前的收藏列表
+    const [users] = await pool.query(
+      "SELECT favorites FROM users WHERE id = ?",
+      [id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+
+    let favorites = [];
+    try {
+      favorites =
+        typeof users[0].favorites === "string"
+          ? JSON.parse(users[0].favorites)
+          : users[0].favorites || [];
+    } catch (e) {
+      favorites = [];
+    }
+
+    // 检查是否已经收藏
+    if (!favorites.includes(movieId)) {
+      favorites.push(movieId);
+
+      // 更新数据库
+      await pool.query("UPDATE users SET favorites = ? WHERE id = ?", [
+        JSON.stringify(favorites),
+        id,
+      ]);
+    }
+
+    res.json({ favorites });
+  } catch (error) {
+    console.error("添加收藏失败:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 取消收藏
+router.delete("/:id/favorites/:movieId", async (req, res) => {
+  try {
+    const { id, movieId } = req.params;
+
+    // 获取用户当前的收藏列表
+    const [users] = await pool.query(
+      "SELECT favorites FROM users WHERE id = ?",
+      [id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+
+    let favorites = [];
+    try {
+      favorites =
+        typeof users[0].favorites === "string"
+          ? JSON.parse(users[0].favorites)
+          : users[0].favorites || [];
+    } catch (e) {
+      favorites = [];
+    }
+
+    // 从收藏列表中移除
+    favorites = favorites.filter((fid) => fid !== parseInt(movieId));
+
+    // 更新数据库
+    await pool.query("UPDATE users SET favorites = ? WHERE id = ?", [
+      JSON.stringify(favorites),
+      id,
+    ]);
+
+    res.json({ favorites });
+  } catch (error) {
+    console.error("取消收藏失败:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== 基本用户路由 =====
 
 // 获取单个用户
 router.get("/:id", async (req, res) => {
@@ -79,6 +210,10 @@ router.get("/:id", async (req, res) => {
       typeof user.comments === "string"
         ? JSON.parse(user.comments)
         : user.comments || [];
+    user.favorites =
+      typeof user.favorites === "string"
+        ? JSON.parse(user.favorites)
+        : user.favorites || [];
 
     res.json(user);
   } catch (error) {
@@ -104,11 +239,12 @@ router.post("/", async (req, res) => {
       signature,
       collections,
       comments,
+      favorites,
     } = req.body;
 
     const [result] = await pool.query(
-      `INSERT INTO users (account, password, avatar, nickname, gender, age, addtime, birthday, identity, hobbies, signature, collections, comments)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (account, password, avatar, nickname, gender, age, addtime, birthday, identity, hobbies, signature, collections, comments, favorites)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         account,
         password,
@@ -123,6 +259,7 @@ router.post("/", async (req, res) => {
         signature || "",
         JSON.stringify(collections || []),
         JSON.stringify(comments || []),
+        JSON.stringify(favorites || []),
       ]
     );
 
@@ -151,13 +288,14 @@ router.put("/:id", async (req, res) => {
       signature,
       collections,
       comments,
+      favorites,
     } = req.body;
 
     await pool.query(
       `UPDATE users SET 
         account = ?, password = ?, avatar = ?, nickname = ?, gender = ?, 
         age = ?, addtime = ?, birthday = ?, identity = ?, hobbies = ?, 
-        signature = ?, collections = ?, comments = ?
+        signature = ?, collections = ?, comments = ?, favorites = ?
        WHERE id = ?`,
       [
         account,
@@ -173,6 +311,7 @@ router.put("/:id", async (req, res) => {
         signature,
         JSON.stringify(collections || []),
         JSON.stringify(comments || []),
+        JSON.stringify(favorites || []),
         id,
       ]
     );

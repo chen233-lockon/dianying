@@ -148,6 +148,17 @@ export const userAPI = {
 
   // 删除用户
   deleteUser: (id) => instance.delete(`/users/${id}`),
+
+  // 添加收藏
+  addFavorite: (userId, movieId) =>
+    instance.post(`/users/${userId}/favorites`, { movieId }),
+
+  // 取消收藏
+  removeFavorite: (userId, movieId) =>
+    instance.delete(`/users/${userId}/favorites/${movieId}`),
+
+  // 获取用户收藏列表
+  getFavorites: (userId) => instance.get(`/users/${userId}/favorites`),
 };
 
 // 排行榜相关接口

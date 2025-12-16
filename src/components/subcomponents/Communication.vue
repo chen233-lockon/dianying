@@ -13,7 +13,7 @@
 
     <!-- 帖子列表 -->
     <div class="post-list-container">
-      <div v-for="post in posts" :key="post.id" class="post-card">
+      <div v-for="post in paginatedPosts" :key="post.id" class="post-card">
         <div class="post-content">
           <div class="post-text" v-html="post.content"></div>
           <div class="post-meta">
@@ -102,7 +102,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 import { useAuthStore } from "@/stores/auth";
@@ -110,7 +110,7 @@ import { postAPI, userAPI } from "@/api/index.js";
 
 // 数据响应式声明
 const currentPage = ref(1);
-const totalPages = ref(3);
+const itemsPerPage = 10; // 每页显示10条帖子
 const posts = ref([]);
 const showPostModal = ref(false);
 const showEditModal = ref(false);
@@ -154,17 +154,37 @@ const fetchPosts = async () => {
   }
 };
 
+// 计算总页数
+const totalPages = computed(() => {
+  const total = Math.ceil(posts.value.length / itemsPerPage);
+  return total > 0 ? total : 1;
+});
+
+// 分页数据
+const paginatedPosts = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  return posts.value.slice(start, start + itemsPerPage);
+});
+
 // 分页控制
-const prevPage = () => currentPage.value > 1 && currentPage.value--;
-const nextPage = () =>
-  currentPage.value < totalPages.value && currentPage.value++;
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+};
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+};
 
 // 初始化 Quill 编辑器（创建帖子模态框）。
 // 使用 nextTick 确保 DOM 渲染完成后再操作编辑器。
 const showModal = () => {
   showPostModal.value = true;
   nextTick(() => {
-    if (!quill.value) {
+    if (!quill.value && editor.value) {
       quill.value = new Quill(editor.value, {
         theme: "snow",
         placeholder: "请输入帖子内容...",
@@ -187,7 +207,7 @@ const showModal = () => {
           ],
         },
       });
-    } else {
+    } else if (quill.value) {
       quill.value.setText("");
     }
   });
@@ -196,7 +216,9 @@ const showModal = () => {
 // 关闭帖子模态框
 const closeModal = () => {
   showPostModal.value = false;
-  nextTick(() => quill.value?.clipboard.dangerouslyPasteHTML(""));
+  if (quill.value) {
+    quill.value.setText("");
+  }
 };
 
 // 提交新帖子
@@ -246,7 +268,7 @@ const editPost = (post) => {
   postToEdit.value = { ...post };
   showEditModal.value = true;
   nextTick(() => {
-    if (!editQuill.value) {
+    if (!editQuill.value && editEditor.value) {
       editQuill.value = new Quill(editEditor.value, {
         theme: "snow",
         placeholder: "编辑帖子内容...",
@@ -271,7 +293,9 @@ const editPost = (post) => {
       });
     }
     // 将帖子内容粘贴到编辑器中
-    editQuill.value.clipboard.dangerouslyPasteHTML(post.content || "");
+    if (editQuill.value) {
+      editQuill.value.clipboard.dangerouslyPasteHTML(post.content || "");
+    }
   });
 };
 

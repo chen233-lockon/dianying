@@ -22,29 +22,42 @@ export const useUserStore = defineStore("user", {
   actions: {
     async fetchLocation() {
       try {
-        // 使用浏览器原生定位API
         const position = await new Promise((resolve, reject) =>
           navigator.geolocation.getCurrentPosition(resolve, reject, {
-            timeout: 5000, // 添加超时设置
-            maximumAge: 60000, // 使用1分钟内缓存的位置
+            timeout: 10000,
+            maximumAge: 300000,
+            enableHighAccuracy: false,
           })
         );
 
         const { data } = await axios.get(
-          "/geocode/data/reverse-geocode-client",
+          "https://api.bigdatacloud.net/data/reverse-geocode-client",
           {
             params: {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
               localityLanguage: "zh",
             },
-            //timeout: 3000, // 设置超时
+            timeout: 5000,
           }
         );
-        return data.city || data.locality || "未知地区";
+        return (
+          data.city ||
+          data.locality ||
+          data.principalSubdivision ||
+          data.countryName ||
+          "未知地区"
+        );
       } catch (error) {
-        console.error("定位失败:", error);
-        return "未知地区";
+        try {
+          const { data } = await axios.get("https://ipapi.co/json/", {
+            timeout: 4000,
+          });
+          return data.city || data.region || data.country_name || "未知地区";
+        } catch (e) {
+          console.error("定位失败:", error);
+          return "未知地区";
+        }
       }
     },
 

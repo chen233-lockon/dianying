@@ -354,13 +354,16 @@ const submitForm = async () => {
       birthday: ruleForm.birthday || userInfo.value.birthday,
     };
 
-    await userAPI.updateUser(userInfo.value.id, updatedUser);
+    // 避免无意修改密码：不携带 password 字段
+    const { password, ...safePayload } = updatedUser;
+
+    await userAPI.updateUser(userInfo.value.id, safePayload);
 
     // 更新本地用户信息
     userInfo.value = updatedUser;
 
     // 更新 authStore 中的用户信息
-    authStore.setUser(updatedUser);
+    authStore.setUser({ ...authStore.user, ...safePayload });
 
     isEditing.value = false;
     ElMessage.success("个人信息修改成功");

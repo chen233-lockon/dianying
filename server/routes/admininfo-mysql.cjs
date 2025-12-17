@@ -74,12 +74,39 @@ router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const { username, password, avatar, email, phone, registerDate } = req.body;
 
+    // 先读取当前记录，实现部分字段更新
+    const [rows] = await pool.query("SELECT * FROM admininfo WHERE id = ?", [
+      id,
+    ]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "管理员不存在" });
+    }
+    const current = rows[0];
+
+    const next = {
+      username: username !== undefined ? username : current.username,
+      password: password !== undefined ? password : current.password,
+      avatar: avatar !== undefined ? avatar : current.avatar,
+      email: email !== undefined ? email : current.email,
+      phone: phone !== undefined ? phone : current.phone,
+      registerDate:
+        registerDate !== undefined ? registerDate : current.registerDate,
+    };
+
     await pool.query(
       `UPDATE admininfo SET username = ?, password = ?, avatar = ?, email = ?, phone = ?, registerDate = ? WHERE id = ?`,
-      [username, password, avatar, email, phone, registerDate, id]
+      [
+        next.username,
+        next.password,
+        next.avatar,
+        next.email,
+        next.phone,
+        next.registerDate,
+        id,
+      ]
     );
 
-    res.json({ id: parseInt(id), ...req.body });
+    res.json({ id: parseInt(id), ...next });
   } catch (error) {
     console.error("更新管理员失败:", error);
     res.status(500).json({ error: error.message });

@@ -100,7 +100,6 @@
 import { ref, computed, onMounted, onActivated } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useCategoryStore } from "../../../stores/category";
-import { addOperationLog } from "../../../utils/operationLog";
 
 const categoryStore = useCategoryStore();
 
@@ -160,7 +159,6 @@ const handleDelete = async (category) => {
 
     await categoryStore.deleteCategory(category.id);
     ElMessage.success("分类删除成功");
-    await addOperationLog(`删除了分类：${category.name}`);
   } catch (error) {
     ElMessage.info("取消删除操作");
   }
@@ -175,11 +173,9 @@ const submitForm = async () => {
     if (isEditing.value) {
       await categoryStore.updateCategory(form.value);
       ElMessage.success("分类更新成功");
-      await addOperationLog(`更新了分类：${form.value.name}`);
     } else {
       await categoryStore.addCategory(form.value);
       ElMessage.success("分类创建成功");
-      await addOperationLog(`添加了分类：${form.value.name}`);
     }
     dialogVisible.value = false;
   } catch (error) {

@@ -310,22 +310,53 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      account,
-      password,
-      avatar,
-      nickname,
-      gender,
-      age,
-      addtime,
-      birthday,
-      identity,
-      hobbies,
-      signature,
-      collections,
-      comments,
-      favorites,
-    } = req.body;
+    const body = req.body || {};
+
+    // 读取当前用户，进行部分字段合并
+    const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "用户不存在" });
+    }
+
+    const current = rows[0];
+
+    // 解析现有 JSON 字段
+    const currentHobbies =
+      typeof current.hobbies === "string"
+        ? JSON.parse(current.hobbies)
+        : current.hobbies || [];
+    const currentCollections =
+      typeof current.collections === "string"
+        ? JSON.parse(current.collections)
+        : current.collections || [];
+    const currentComments =
+      typeof current.comments === "string"
+        ? JSON.parse(current.comments)
+        : current.comments || [];
+    const currentFavorites =
+      typeof current.favorites === "string"
+        ? JSON.parse(current.favorites)
+        : current.favorites || [];
+
+    const next = {
+      account: body.account !== undefined ? body.account : current.account,
+      password: body.password !== undefined ? body.password : current.password,
+      avatar: body.avatar !== undefined ? body.avatar : current.avatar,
+      nickname: body.nickname !== undefined ? body.nickname : current.nickname,
+      gender: body.gender !== undefined ? body.gender : current.gender,
+      age: body.age !== undefined ? body.age : current.age,
+      addtime: body.addtime !== undefined ? body.addtime : current.addtime,
+      birthday: body.birthday !== undefined ? body.birthday : current.birthday,
+      identity: body.identity !== undefined ? body.identity : current.identity,
+      hobbies: body.hobbies !== undefined ? body.hobbies : currentHobbies,
+      signature:
+        body.signature !== undefined ? body.signature : current.signature,
+      collections:
+        body.collections !== undefined ? body.collections : currentCollections,
+      comments: body.comments !== undefined ? body.comments : currentComments,
+      favorites:
+        body.favorites !== undefined ? body.favorites : currentFavorites,
+    };
 
     await pool.query(
       `UPDATE users SET 
@@ -334,25 +365,25 @@ router.put("/:id", async (req, res) => {
         signature = ?, collections = ?, comments = ?, favorites = ?
        WHERE id = ?`,
       [
-        account,
-        password,
-        avatar,
-        nickname,
-        gender,
-        age,
-        addtime,
-        birthday,
-        identity,
-        JSON.stringify(hobbies || []),
-        signature,
-        JSON.stringify(collections || []),
-        JSON.stringify(comments || []),
-        JSON.stringify(favorites || []),
+        next.account,
+        next.password,
+        next.avatar,
+        next.nickname,
+        next.gender,
+        next.age,
+        next.addtime,
+        next.birthday,
+        next.identity,
+        JSON.stringify(next.hobbies || []),
+        next.signature,
+        JSON.stringify(next.collections || []),
+        JSON.stringify(next.comments || []),
+        JSON.stringify(next.favorites || []),
         id,
       ]
     );
 
-    res.json({ id: parseInt(id), ...req.body });
+    res.json({ id: parseInt(id), ...next });
   } catch (error) {
     console.error("更新用户失败:", error);
     res.status(500).json({ error: error.message });

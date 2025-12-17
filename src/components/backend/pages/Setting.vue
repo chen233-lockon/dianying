@@ -181,6 +181,29 @@ const passwordForm = reactive({
   confirmPassword: "",
 });
 
+// 表单引用与校验规则
+const passwordFormRef = ref();
+const passwordRules = reactive({
+  currentPassword: [
+    { required: true, message: "请输入当前密码", trigger: "blur" },
+  ],
+  newPassword: [
+    { required: true, message: "请输入新密码", trigger: "blur" },
+    { min: 6, message: "密码长度至少6位", trigger: "blur" },
+  ],
+  confirmPassword: [
+    {
+      validator: (_rule, value, callback) => {
+        if (!value) return callback(new Error("请再次输入新密码"));
+        if (value !== passwordForm.newPassword)
+          return callback(new Error("两次输入的密码不一致"));
+        callback();
+      },
+      trigger: "blur",
+    },
+  ],
+});
+
 // 操作日志
 const operationLogs = ref([]);
 
@@ -252,8 +275,26 @@ const saveProfile = async () => {
 // 修改密码
 const changePassword = async () => {
   try {
+    // 基本校验
+    if (!userStore.adminProfile?.id) {
+      // 尝试加载管理员信息
+      try {
+        await userStore.loadAdminProfile();
+      } catch (_) {}
+    }
+
+    const adminId = userStore.adminProfile?.id;
+    if (!adminId) {
+      throw new Error("未获取到管理员信息，请重新登录");
+    }
+
+    // 表单规则校验
+    if (passwordFormRef.value) {
+      await passwordFormRef.value.validate();
+    }
+
     // 使用adminAPI获取当前密码进行验证
-    const response = await adminAPI.getAdmin(admin.id);
+    const response = await adminAPI.getAdmin(adminId);
     const currentAdmin = response.data;
 
     if (passwordForm.currentPassword !== currentAdmin.password) {
@@ -261,9 +302,7 @@ const changePassword = async () => {
     }
 
     // 使用adminAPI更新密码
-    await adminAPI.updateAdmin(admin.id, {
-      password: passwordForm.newPassword,
-    });
+    await adminAPI.updateAdmin(adminId, { password: passwordForm.newPassword });
 
     ElMessage.success("密码已更新，请重新登录");
     setTimeout(() => {
